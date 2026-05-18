@@ -13,10 +13,10 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
 
   return {
     config(openCodeConfig) {
-      openCodeConfig.agents ??= {}
+      openCodeConfig.agent ??= {}
 
       // Main review agent — can spawn fixer sub-agent via task tool
-      openCodeConfig.agents["review"] = {
+      openCodeConfig.agent["review"] = {
         mode: "primary",
         temperature: 0.1,
         steps: 30,
@@ -37,7 +37,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
       }
 
       // Fixer sub-agent — has write capabilities to apply fixes
-      openCodeConfig.agents["review:fixer"] = {
+      openCodeConfig.agent["review:fixer"] = {
         mode: "subagent",
         temperature: 0.2,
         steps: 20,
@@ -52,8 +52,8 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         prompt: fixerPrompt,
       }
 
-      openCodeConfig.commands ??= {}
-      openCodeConfig.commands["review"] = {
+      openCodeConfig.command ??= {}
+      openCodeConfig.command["review"] = {
         agent: "review",
         description: "Review code changes with structured feedback",
         prompt: agentPrompt,
