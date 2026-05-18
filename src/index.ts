@@ -8,10 +8,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
   const agentPrompt = buildAgentPrompt(config)
   const fixerPrompt = buildFixerPrompt(config)
 
-  // Debounce: after triggering auto-review, don't trigger again for 2 minutes.
-  // This prevents the infinite loop: coding→review→idle→review→idle→...
   let lastAutoReviewTime = 0
-  const COOLDOWN_MS = 120_000
 
   return {
     config(openCodeConfig) {
@@ -67,7 +64,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
     event: async ({ event }) => {
       if (event.type === "session.idle" && config.trigger.auto_on_idle) {
         const now = Date.now()
-        if (now - lastAutoReviewTime < COOLDOWN_MS) return
+        if (now - lastAutoReviewTime < config.trigger.cooldown_seconds * 1000) return
         lastAutoReviewTime = now
 
         const ev = event as any

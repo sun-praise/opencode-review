@@ -8,6 +8,7 @@ export interface ReviewConfig {
   max_diff_lines: number
   trigger: {
     auto_on_idle: boolean
+    cooldown_seconds: number
   }
   custom_rules: string[]
 }
@@ -24,6 +25,7 @@ const DEFAULT_CONFIG: ReviewConfig = {
   max_diff_lines: 500,
   trigger: {
     auto_on_idle: false,
+    cooldown_seconds: 120,
   },
   custom_rules: [],
 }
@@ -61,5 +63,3 @@ export async function loadConfig(
     },
   }
 }
-// test comment for review
-// TODO: fix this
