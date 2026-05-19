@@ -11,6 +11,7 @@ export interface ReviewConfig {
     cooldown_seconds: number
   }
   custom_rules: string[]
+  parallel: boolean
 }
 
 const DEFAULT_CONFIG: ReviewConfig = {
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG: ReviewConfig = {
     cooldown_seconds: 120,
   },
   custom_rules: [],
+  parallel: true,
 }
 
 const CONFIG_FILENAME = "review.json"

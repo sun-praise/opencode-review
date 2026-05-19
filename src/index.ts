@@ -1,12 +1,14 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { loadConfig } from "./config.ts"
 import { buildAgentPrompt, buildFixerPrompt, buildTogglePrompt } from "./agent.ts"
+import { getDimensionPrompts } from "./dimensions/index.ts"
 import { reviewChanges, createToggleAutoReviewTool } from "./tools/index.ts"
 
 const opencodeReview: Plugin = async ({ project, client, $, directory, worktree }) => {
   const config = await loadConfig(directory)
   const agentPrompt = buildAgentPrompt(config)
   const fixerPrompt = buildFixerPrompt(config)
+  const dimensionPrompts = getDimensionPrompts(config)
 
   let autoEnabled = config.trigger.auto_on_idle
   let lastAutoReviewTime = 0
@@ -48,6 +50,23 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
           glob: true,
         },
         prompt: fixerPrompt,
+      }
+
+      if (config.parallel) {
+        for (const dim of dimensionPrompts) {
+          openCodeConfig.agent[dim.agentName] = {
+            mode: "subagent",
+            temperature: 0.1,
+            steps: 30,
+            tools: {
+              write: false,
+              edit: false,
+              bash: false,
+              task: false,
+            },
+            prompt: dim.prompt,
+          }
+        }
       }
 
       openCodeConfig.command ??= {}

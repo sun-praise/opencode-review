@@ -14,62 +14,61 @@ export const reviewChanges = tool({
   async execute(args, context) {
     const { $, directory } = context
     const scope = args.scope ?? "staged"
+    const maxLines = args.max_lines ?? 500
 
-    let diffCmd: string
-    let statsCmd: string
+    let diffResult: string
+    let statsResult: string
 
     switch (scope) {
       case "staged":
-        diffCmd = "git diff --cached"
-        statsCmd = "git diff --cached --stat"
+        diffResult = await runCommand($, "git diff --cached")
+        statsResult = await runCommand($, "git diff --cached --stat")
         break
       case "last-commit":
-        diffCmd = "git show --format='' HEAD"
-        statsCmd = "git show --format='' --stat HEAD"
+        diffResult = await runCommand($, "git show --format='' HEAD")
+        statsResult = await runCommand($, "git show --format='' --stat HEAD")
         break
       case "branch": {
-        const defaultBranch = await getDefaultBranch($, directory)
-        diffCmd = `git diff ${defaultBranch}...HEAD`
-        statsCmd = `git diff ${defaultBranch}...HEAD --stat`
+        const defaultBranch = await getDefaultBranch($)
+        diffResult = await runCommand($, `git diff ${defaultBranch}...HEAD`)
+        statsResult = await runCommand($, `git diff ${defaultBranch}...HEAD --stat`)
         break
       }
     }
 
-    const maxLines = args.max_lines ?? 500
+    let diff = diffResult
+    const stats = statsResult
 
-    try {
-      const [diffResult, statsResult] = await Promise.all([
-        $`${diffCmd}`.quiet(),
-        $`${statsCmd}`.quiet(),
-      ])
-
-      let diff = diffResult.stdout ?? ""
-      const stats = statsResult.stdout ?? ""
-
-      const truncated = diff.split("\n").length > maxLines
-      if (truncated) {
-        diff = diff.split("\n").slice(0, maxLines).join("\n")
-      }
-
-      if (!diff.trim()) {
-        return "No changes found for the selected scope."
-      }
-
-      let output = `## Change Stats\n${stats}\n\n## Diff\n\`\`\`diff\n${diff}\n\`\`\``
-      if (truncated) {
-        output += `\n\n⚠️ Diff truncated at ${maxLines} lines. Use a smaller scope or increase max_lines for full review.`
-      }
-
-      return output
-    } catch (err: any) {
-      return `Error gathering diff: ${err.message ?? err}`
+    const truncated = diff.split("\n").length > maxLines
+    if (truncated) {
+      diff = diff.split("\n").slice(0, maxLines).join("\n")
     }
+
+    if (!diff.trim()) {
+      return "No changes found for the selected scope."
+    }
+
+    let output = `## Change Stats\n${stats}\n\n## Diff\n\`\`\`diff\n${diff}\n\`\`\``
+    if (truncated) {
+      output += `\n\n⚠️ Diff truncated at ${maxLines} lines. Use a smaller scope or increase max_lines for full review.`
+    }
+
+    return output
   },
 })
 
-async function getDefaultBranch($: any, _directory: string): Promise<string> {
+async function runCommand($: any, cmd: string): Promise<string> {
   try {
-    const result = await $`git remote show origin`.quiet()
+    const result = await $`bash -c ${cmd}`.quiet()
+    return result.stdout ?? ""
+  } catch {
+    return ""
+  }
+}
+
+async function getDefaultBranch($: any): Promise<string> {
+  try {
+    const result = await $`bash -c 'git remote show origin'`.quiet()
     const match = (result.stdout ?? "").match(/HEAD branch: (.+)/)
     if (match) return match[1]
   } catch {
