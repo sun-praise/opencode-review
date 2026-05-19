@@ -1,8 +1,8 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { loadConfig } from "./config.ts"
-import { buildAgentPrompt, buildFixerPrompt } from "./agent.ts"
+import { buildAgentPrompt, buildFixerPrompt, buildTogglePrompt } from "./agent.ts"
 import { getDimensionPrompts } from "./dimensions/index.ts"
-import { reviewChanges } from "./tools/index.ts"
+import { reviewChanges, createToggleAutoReviewTool } from "./tools/index.ts"
 
 const opencodeReview: Plugin = async ({ project, client, $, directory, worktree }) => {
   const config = await loadConfig(directory)
@@ -10,6 +10,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
   const fixerPrompt = buildFixerPrompt(config)
   const dimensionPrompts = getDimensionPrompts(config)
 
+  let autoEnabled = config.trigger.auto_on_idle
   let lastAutoReviewTime = 0
 
   return {
@@ -74,14 +75,26 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         description: "Review code changes with structured feedback",
         template: agentPrompt,
       }
+
+      openCodeConfig.command["review:auto"] = {
+        agent: "review",
+        description: config.language === "zh"
+          ? "切换自动审查开关（on/off）"
+          : "Toggle auto-review on/off",
+        template: buildTogglePrompt(config),
+      }
     },
 
     tool: {
       review_changes: reviewChanges,
+      toggle_auto_review: createToggleAutoReviewTool(
+        () => autoEnabled,
+        (v) => { autoEnabled = v },
+      ),
     },
 
     event: async ({ event }) => {
-      if (event.type === "session.idle" && config.trigger.auto_on_idle) {
+      if (event.type === "session.idle" && autoEnabled) {
         const now = Date.now()
         if (now - lastAutoReviewTime < config.trigger.cooldown_seconds * 1000) return
         lastAutoReviewTime = now
