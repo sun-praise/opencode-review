@@ -100,13 +100,13 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
       const args = (input.arguments ?? "").trim().toLowerCase()
       const isZh = config.language === "zh"
 
-      if (args.includes("on")) {
+      if (args === "on" || args.startsWith("on ")) {
         autoEnabled = true
         output.parts = [{
           type: "text" as const,
           text: isZh ? "✅ 自动审查已开启" : "✅ Auto-review is now ON",
         }]
-      } else if (args.includes("off")) {
+      } else if (args === "off" || args.startsWith("off ")) {
         autoEnabled = false
         output.parts = [{
           type: "text" as const,
