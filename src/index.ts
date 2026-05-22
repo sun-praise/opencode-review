@@ -81,7 +81,8 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         description: config.language === "zh"
           ? "切换自动审查开关（on/off）"
           : "Toggle auto-review on/off",
-        template: buildTogglePrompt(config),
+        template: "Toggle auto-review",
+        noReply: true,
       }
     },
 
@@ -91,6 +92,34 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         () => autoEnabled,
         (v) => { autoEnabled = v },
       ),
+    },
+
+    "command.execute.before": async (input, output) => {
+      if (input.command !== "review:auto") return
+
+      const args = (input.arguments ?? "").trim().toLowerCase()
+      const isZh = config.language === "zh"
+
+      if (args.includes("on")) {
+        autoEnabled = true
+        output.parts = [{
+          type: "text" as const,
+          text: isZh ? "✅ 自动审查已开启" : "✅ Auto-review is now ON",
+        }]
+      } else if (args.includes("off")) {
+        autoEnabled = false
+        output.parts = [{
+          type: "text" as const,
+          text: isZh ? "✅ 自动审查已关闭" : "✅ Auto-review is now OFF",
+        }]
+      } else {
+        output.parts = [{
+          type: "text" as const,
+          text: isZh
+            ? `自动审查当前状态：${autoEnabled ? "开启" : "关闭"}\n用法：/review:auto on 或 /review:auto off`
+            : `Auto-review is currently ${autoEnabled ? "ON" : "OFF"}\nUsage: /review:auto on or /review:auto off`,
+        }]
+      }
     },
 
     event: async ({ event }) => {
