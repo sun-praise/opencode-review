@@ -1,6 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { loadConfig } from "./config.ts"
-import { buildAgentPrompt, buildFixerPrompt, buildTogglePrompt } from "./agent.ts"
+import { buildAgentPrompt, buildFixerPrompt } from "./agent.ts"
 import { getDimensionPrompts } from "./dimensions/index.ts"
 import { reviewChanges, createToggleAutoReviewTool } from "./tools/index.ts"
 
