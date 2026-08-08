@@ -1,4 +1,5 @@
 import type { ReviewConfig } from "../config.ts"
+import { getLang } from "../config.ts"
 
 export interface DimensionPrompt {
   name: string
@@ -6,7 +7,7 @@ export interface DimensionPrompt {
   prompt: string
 }
 
-const DIMENSIONS: Record<string, { zh: string; en: string }> = {
+const DIMENSIONS: Record<string, { zh: string; en: string; tr: string }> = {
   "code-quality": {
     zh: `你是一个专注于**代码质量**审查的专家。使用 \`review_changes\` 工具获取代码变更，然后进行审查。
 
@@ -24,6 +25,14 @@ const DIMENSIONS: Record<string, { zh: string; en: string }> = {
 - Conventions: adherence to project coding standards
 - Duplication: extractable repeated logic
 - Error handling: appropriate exception handling`,
+    tr: `**Kod kalitesi** incelemesine odaklanmış bir uzmansın. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
+
+## İnceleme Odağı
+- Okunabilirlik: açık adlandırma, kendi kendini açıklayan kod
+- Yapı: fonksiyon/metot uzunluğu, tek sorumluluk
+- Standartlar: proje kodlama standartlarına uyum
+- Tekrar: çıkarılabilir tekrarlanan mantık
+- Hata yönetimi: uygun istisna yönetimi`,
   },
   "security": {
     zh: `你是一个专注于**安全性**审查的专家。使用 \`review_changes\` 工具获取代码变更，然后进行审查。
@@ -44,6 +53,15 @@ const DIMENSIONS: Record<string, { zh: string; en: string }> = {
 - Sensitive data: hardcoded secrets, credential leaks in logs
 - Cryptography: secure algorithms and protocols
 - Dependency security: known vulnerable dependencies`,
+    tr: `**Güvenlik** incelemesine odaklanmış bir uzmansın. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
+
+## İnceleme Odağı
+- Girdi doğrulama: kullanıcı girdilerinin temizlenmesi ve doğrulanması
+- Enjeksiyon önleme: SQL enjeksiyonu, XSS, komut enjeksiyonu, yol gezinimi
+- Kimlik doğrulama ve yetkilendirme: izin kontrolleri, oturum yönetimi
+- Hassas veri: sabit kodlanmış gizli anahtarlar, loglarda kimlik bilgisi sızıntısı
+- Kriptografi: güvenli algoritmalar ve protokoller
+- Bağımlılık güvenliği: bilinen güvenlik açıklı bağımlılıklar`,
   },
   "performance": {
     zh: `你是一个专注于**性能**审查的专家。使用 \`review_changes\` 工具获取代码变更，然后进行审查。
@@ -64,6 +82,15 @@ const DIMENSIONS: Record<string, { zh: string; en: string }> = {
 - I/O operations: blocking synchronous calls, redundant file/network requests
 - Caching: appropriate cache usage and strategies
 - Concurrency: race conditions, lock granularity`,
+    tr: `**Performans** incelemesine odaklanmış bir uzmansın. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
+
+## İnceleme Odağı
+- Algoritma karmaşıklığı: gereksiz iç içe döngüler, zaman karmaşıklığı
+- Veritabanı sorguları: N+1 sorguları, eksik indeksler, tam tablo taramaları
+- Bellek kullanımı: büyük nesneler, bellek sızıntısı riskleri, gereksiz derin kopyalar
+- I/O işlemleri: engelleyici senkron çağrılar, gereksiz dosya/ağ istekleri
+- Önbellekleme: uygun önbellek kullanımı ve stratejileri
+- Eşzamanlılık: yarış koşulları, kilit ayrıntı düzeyi`,
   },
   "testing": {
     zh: `你是一个专注于**测试**审查的专家。使用 \`review_changes\` 工具获取代码变更，然后进行审查。
@@ -82,6 +109,14 @@ const DIMENSIONS: Record<string, { zh: string; en: string }> = {
 - Integration tests: inter-module interaction coverage
 - Test quality: meaningful assertions, appropriate mocking
 - Regression risk: could changes break existing tests`,
+    tr: `**Test** incelemesine odaklanmış bir uzmansın. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
+
+## İnceleme Odağı
+- Test kapsamı: yeni/değiştirilmiş kod yollarının karşılık gelen testleri var mı
+- Sınır durumları: null, sıfır, sınır, hata yolu testleri
+- Entegrasyon testleri: modüller arası etkileşim kapsamı
+- Test kalitesi: anlamlı doğrulamalar, uygun mock kullanımı
+- Regresyon riski: değişiklikler mevcut testleri bozabilir mi`,
   },
   "documentation": {
     zh: `你是一个专注于**文档**审查的专家。使用 \`review_changes\` 工具获取代码变更，然后进行审查。
@@ -100,6 +135,14 @@ const DIMENSIONS: Record<string, { zh: string; en: string }> = {
 - README/CHANGELOG: project-level docs need updating
 - Type docs: TypeScript types self-explanatory, complex types documented
 - Examples: usage examples needed for new features`,
+    tr: `**Dokümantasyon** incelemesine odaklanmış bir uzmansın. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
+
+## İnceleme Odağı
+- Yorumlar: karmaşık mantık için gerekli yorumlar, mevcut yorumların doğruluğu
+- API dokümanları: genel arayüzlerin belgelenmesi (parametreler, dönüşler, istisnalar)
+- README/CHANGELOG: proje düzeyinde doküman güncellemesi gerekiyor mu
+- Tip dokümanları: TypeScript tipleri kendi kendini açıklıyor mu, karmaşık tipler belgelenmiş mi
+- Örnekler: yeni özellikler için kullanım örnekleri gerekli mi`,
   },
 }
 
@@ -118,12 +161,19 @@ For each finding, use:
 - ✅ **[file_path:line_number]** Highlight: description
 
 If no issues found, output "No issues found for this dimension."`,
+  tr: `## Çıktı Formatı
+Her bulgu için şu formatı kullan:
+- 🔴 **[file_path:line_number]** Kritik: açıklama
+- 🟡 **[file_path:line_number]** Öneri: açıklama
+- ✅ **[file_path:line_number]** Artı: açıklama
+
+Sorun bulunamazsa, "Bu boyutta sorun bulunamadı." çıktısını ver.`,
 }
 
 function buildDimensionPrompt(dimension: string, config: ReviewConfig): string {
   const content = DIMENSIONS[dimension]
   if (!content) return ""
-  const lang = config.language === "zh" ? "zh" : "en"
+  const lang = getLang(config)
   return content[lang] + "\n\n" + OUTPUT_FORMAT[lang]
 }
 
