@@ -77,7 +77,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         template: agentPrompt,
       }
 
-      const toggleDescriptions: Record<string, string> = {
+      const toggleDescriptions: Record<ReturnType<typeof getLang>, string> = {
         zh: "切换自动审查开关（on/off）",
         en: "Toggle auto-review on/off",
         tr: "Otomatik incelemeyi aç/kapat (on/off)",
@@ -85,7 +85,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
 
       openCodeConfig.command["review:auto"] = {
         agent: "review",
-        description: toggleDescriptions[lang] ?? toggleDescriptions.en,
+        description: toggleDescriptions[lang],
         template: buildTogglePrompt(config),
       }
     },

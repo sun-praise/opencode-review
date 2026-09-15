@@ -15,11 +15,15 @@ export interface ReviewConfig {
 }
 
 const SUPPORTED_LANGUAGES = ["zh", "en", "tr"] as const
-type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
+
+function isSupportedLanguage(language: string): language is SupportedLanguage {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(language)
+}
 
 export function getLang(config: ReviewConfig): SupportedLanguage {
-  if (SUPPORTED_LANGUAGES.includes(config.language as SupportedLanguage)) {
-    return config.language as SupportedLanguage
+  if (isSupportedLanguage(config.language)) {
+    return config.language
   }
   return "en"
 }
