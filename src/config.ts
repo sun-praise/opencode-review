@@ -14,6 +14,20 @@ export interface ReviewConfig {
   parallel: boolean
 }
 
+const SUPPORTED_LANGUAGES = ["zh", "en", "tr"] as const
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
+
+function isSupportedLanguage(language: string): language is SupportedLanguage {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(language)
+}
+
+export function getLang(config: ReviewConfig): SupportedLanguage {
+  if (isSupportedLanguage(config.language)) {
+    return config.language
+  }
+  return "en"
+}
+
 const DEFAULT_CONFIG: ReviewConfig = {
   language: "zh",
   dimensions: [

@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
-import { loadConfig } from "./config.ts"
+import { loadConfig, getLang } from "./config.ts"
 import { buildAgentPrompt, buildFixerPrompt, buildTogglePrompt } from "./agent.ts"
 import { getDimensionPrompts } from "./dimensions/index.ts"
 import { reviewChanges, createToggleAutoReviewTool } from "./tools/index.ts"
@@ -9,6 +9,7 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
   const agentPrompt = buildAgentPrompt(config)
   const fixerPrompt = buildFixerPrompt(config)
   const dimensionPrompts = getDimensionPrompts(config)
+  const lang = getLang(config)
 
   let autoEnabled = config.trigger.auto_on_idle
   let lastAutoReviewTime = 0
@@ -76,11 +77,15 @@ const opencodeReview: Plugin = async ({ project, client, $, directory, worktree 
         template: agentPrompt,
       }
 
+      const toggleDescriptions: Record<ReturnType<typeof getLang>, string> = {
+        zh: "切换自动审查开关（on/off）",
+        en: "Toggle auto-review on/off",
+        tr: "Otomatik incelemeyi aç/kapat (on/off)",
+      }
+
       openCodeConfig.command["review:auto"] = {
         agent: "review",
-        description: config.language === "zh"
-          ? "切换自动审查开关（on/off）"
-          : "Toggle auto-review on/off",
+        description: toggleDescriptions[lang],
         template: buildTogglePrompt(config),
       }
     },

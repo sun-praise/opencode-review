@@ -1,31 +1,37 @@
-import type { ReviewConfig } from "./config.ts"
+import type { ReviewConfig, SupportedLanguage } from "./config.ts"
+import { getLang } from "./config.ts"
 import { getDimensionPrompts } from "./dimensions/index.ts"
 
-const DIMENSION_LABELS: Record<string, { zh: string; en: string }> = {
+const DIMENSION_LABELS: Record<string, { zh: string; en: string; tr: string }> = {
   "code-quality": {
     zh: "代码质量（可读性、命名、结构、规范）",
     en: "Code quality (readability, naming, structure, conventions)",
+    tr: "Kod kalitesi (okunabilirlik, adlandırma, yapı, standartlar)",
   },
   security: {
     zh: "安全性（输入验证、注入防护、敏感信息、认证授权）",
     en: "Security (input validation, injection prevention, auth)",
+    tr: "Güvenlik (girdi doğrulama, enjeksiyon önleme, hassas veri, yetkilendirme)",
   },
   performance: {
     zh: "性能（算法复杂度、查询优化、内存使用）",
     en: "Performance (algorithm complexity, query optimization, memory)",
+    tr: "Performans (algoritma karmaşıklığı, sorgu optimizasyonu, bellek kullanımı)",
   },
   testing: {
     zh: "测试（单元测试覆盖、边界条件、集成测试）",
     en: "Testing (unit coverage, edge cases, integration tests)",
+    tr: "Test (birim test kapsamı, sınır durumları, entegrasyon testleri)",
   },
   documentation: {
     zh: "文档（注释、API 文档、README/CHANGELOG）",
     en: "Documentation (comments, API docs, README/CHANGELOG)",
+    tr: "Dokümantasyon (yorumlar, API dokümanları, README/CHANGELOG)",
   },
 }
 
 function buildDimensionList(config: ReviewConfig): string {
-  const lang = config.language === "zh" ? "zh" : "en"
+  const lang = getLang(config)
   return config.dimensions
     .map((d) => {
       const label = DIMENSION_LABELS[d]?.[lang] ?? d
@@ -39,7 +45,7 @@ function buildCustomRules(rules: string[]): string {
   return `\n### Custom Rules\n${rules.map((r) => `- ${r}`).join("\n")}`
 }
 
-const REPORT_FORMAT: Record<string, string> = {
+const REPORT_FORMAT: Record<SupportedLanguage, string> = {
   zh: `## 输出格式
 
 \`\`\`
@@ -74,9 +80,26 @@ const REPORT_FORMAT: Record<string, string> = {
 ### Highlights :white_check_mark:
 [Good practices found in the code]
 \`\`\``,
+  tr: `## Çıktı Formatı
+
+\`\`\`
+## İnceleme Sonuçları
+
+### Genel Değerlendirme
+[Kod kalitesinin kısa açıklaması]
+
+### Kritik Sorunlar :red_circle:
+[Mutlaka düzeltilmesi gereken sorunlar, file_path:line_number referansıyla]
+
+### Öneriler :yellow_circle:
+[İsteğe bağlı iyileştirme önerileri, file_path:line_number referansıyla]
+
+### Artılar :white_check_mark:
+[Kodda iyi yapılmış noktalar]
+\`\`\``,
 }
 
-const AUTO_FIX_INSTRUCTION: Record<string, string> = {
+const AUTO_FIX_INSTRUCTION: Record<SupportedLanguage, string> = {
   zh: `## 自动修复
 
 如果任何维度代理发现了关键问题（🔴），你必须：
@@ -89,6 +112,12 @@ If any dimension agent finds critical issues (🔴), you MUST:
 1. Collect all critical issues across dimensions
 2. Use the \`task\` tool to spawn a \`review:fixer\` sub-agent with combined fix instructions
 3. Wait for the fixer to complete`,
+  tr: `## Otomatik Düzeltme
+
+Herhangi bir boyut ajanı kritik sorun (🔴) bulursa:
+1. Tüm boyutlardaki kritik sorunları bir araya topla
+2. Birleştirilmiş düzeltme talimatları ile \`task\` aracını kullanarak \`review:fixer\` alt ajanı başlat
+3. Fixer'ın tamamlanmasını bekle`,
 }
 
 export function buildAgentPrompt(config: ReviewConfig): string {
@@ -99,12 +128,12 @@ export function buildAgentPrompt(config: ReviewConfig): string {
 }
 
 function buildParallelPrompt(config: ReviewConfig): string {
-  const lang = config.language === "zh" ? "zh" : "en"
+  const lang = getLang(config)
   const dimensions = getDimensionPrompts(config)
   const dimensionList = dimensions.map((d) => `- ${d.agentName}: ${d.name}`).join("\n")
 
-  if (lang === "zh") {
-    return `你是一个代码审查调度器。你的任务是并行调度多个维度审查子代理，收集结果，并生成统一报告。
+  const prompts: Record<SupportedLanguage, string> = {
+    zh: `你是一个代码审查调度器。你的任务是并行调度多个维度审查子代理，收集结果，并生成统一报告。
 
 ## 可用维度代理
 ${dimensionList}
@@ -122,10 +151,27 @@ ${dimensionList}
 
 ${REPORT_FORMAT.zh}
 
-${AUTO_FIX_INSTRUCTION.zh}`
-  }
+${AUTO_FIX_INSTRUCTION.zh}`,
+    tr: `Sen bir kod inceleme orkestratörüsün. Görevin birden fazla boyut inceleme alt ajanını paralel olarak dağıtmak, sonuçları toplamak ve birleşik bir rapor oluşturmak.
 
-  return `You are a code review orchestrator. Your task is to dispatch multiple dimension review sub-agents in parallel, collect results, and produce a unified report.
+## Kullanılabilir Boyut Ajanları
+${dimensionList}
+
+## İş Akışı
+1. Diff'i almak için \`review_changes\` aracını kullan (varsayılan scope "staged")
+2. Etkinleştirilmiş her boyut için, \`task\` aracıyla ilgili alt ajanı başlat:
+   - agent: \`<boyut ajan adı>\`
+   - message: "Lütfen aşağıdaki kod değişikliklerini incele" + diff özeti
+3. Tüm boyut ajanlarının sonuçlarını topla
+4. Sonuçları önem derecesine göre birleştir:
+   - Kritik (🔴) → Öneri (🟡) → Artı (✅)
+5. Aynı kod konumundaki tekrar eden bulguları birleştir
+6. Birleşik raporu çıktı olarak ver
+
+${REPORT_FORMAT.tr}
+
+${AUTO_FIX_INSTRUCTION.tr}`,
+    en: `You are a code review orchestrator. Your task is to dispatch multiple dimension review sub-agents in parallel, collect results, and produce a unified report.
 
 ## Available Dimension Agents
 ${dimensionList}
@@ -143,14 +189,17 @@ ${dimensionList}
 
 ${REPORT_FORMAT.en}
 
-${AUTO_FIX_INSTRUCTION.en}`
+${AUTO_FIX_INSTRUCTION.en}`,
+  }
+
+  return prompts[lang]
 }
 
 function buildSinglePrompt(config: ReviewConfig): string {
-  const isZh = config.language === "zh"
+  const lang = getLang(config)
 
-  if (isZh) {
-    return `你是一个专业的代码审查员。请使用 \`review_changes\` 工具获取代码变更，然后进行审查。
+  const prompts: Record<SupportedLanguage, string> = {
+    zh: `你是一个专业的代码审查员。请使用 \`review_changes\` 工具获取代码变更，然后进行审查。
 
 ## 审查维度
 ${buildDimensionList(config)}
@@ -204,10 +253,23 @@ ${buildCustomRules(config.custom_rules)}
 \`\`\`
 
 3. 等待 fixer 完成修复并确认结果
-4. 如果没有关键问题，不需要调用 fixer`
-  }
+4. 如果没有关键问题，不需要调用 fixer`,
+    tr: `Sen profesyonel bir kod incelemecisisin. Kod değişikliklerini almak için \`review_changes\` aracını kullan, ardından incele.
 
-  return `You are a professional code reviewer. Use the \`review_changes\` tool to get code changes, then review them.
+## İnceleme Boyutları
+${buildDimensionList(config)}
+${buildCustomRules(config.custom_rules)}
+
+## İş Akışı
+1. Diff'i almak için \`review_changes\` aracını çağır (varsayılan scope "staged")
+2. Bağlam için ilgili dosyaları \`read\` ile oku
+3. İlgili kodu aramak için \`grep\` veya \`glob\` kullan
+4. Değişikliklerin etki alanını analiz et
+
+${REPORT_FORMAT.tr}
+
+${AUTO_FIX_INSTRUCTION.tr}`,
+    en: `You are a professional code reviewer. Use the \`review_changes\` tool to get code changes, then review them.
 
 ## Review Dimensions
 ${buildDimensionList(config)}
@@ -261,14 +323,17 @@ Fix the following critical issues:
 \`\`\`
 
 3. Wait for the fixer to complete and confirm results
-4. If no critical issues, do not spawn the fixer`
+4. If no critical issues, do not spawn the fixer`,
+  }
+
+  return prompts[lang]
 }
 
 export function buildFixerPrompt(config: ReviewConfig): string {
-  const isZh = config.language === "zh"
+  const lang = getLang(config)
 
-  if (isZh) {
-    return `你是一个代码修复代理。你会收到审查发现的关键问题列表，你的任务是修复这些问题。
+  const prompts: Record<SupportedLanguage, string> = {
+    zh: `你是一个代码修复代理。你会收到审查发现的关键问题列表，你的任务是修复这些问题。
 
 ## 工作流程
 1. 阅读每个问题涉及的文件
@@ -291,10 +356,32 @@ export function buildFixerPrompt(config: ReviewConfig): string {
 如果某个问题无法安全修复：
 \`\`\`
 ⚠️ [file_path:line_number] 无法修复：原因说明
-\`\`\``
-  }
+\`\`\``,
+    tr: `Sen bir kod düzeltme ajanısın. Kod incelemesinde bulunan kritik sorunların bir listesini alırsın, görevin bu sorunları düzeltmek.
 
-  return `You are a code fixer agent. You receive a list of critical issues found during code review, and your task is to fix them.
+## İş Akışı
+1. Her sorunla ilgili dosyaları oku
+2. Sorunun bağlamını anla
+3. Minimum düzeltme uygula (ekstra refactoring yapma)
+4. Düzeltilmiş kodun sözdizimsel olarak doğru olduğunu onayla
+
+## Düzeltme İlkeleri
+- Sadece belirtilen sorunları düzelt, ek değişiklik yapma
+- Kod stilini mevcut kodla tutarlı tut
+- Düzeltme yeni sorunlara yol açabilirse, nedenini açıkla ve dikkatli ilerle
+- Her düzeltmeden sonra ne yapıldığını kısaca açıkla
+
+## Çıktı Formatı
+Her düzeltme için:
+\`\`\`
+✅ [file_path:line_number] Düzeltme açıklaması
+\`\`\`
+
+Bir sorun güvenli şekilde düzeltilemiyorsa:
+\`\`\`
+⚠️ [file_path:line_number] Düzeltilemedi: neden
+\`\`\``,
+    en: `You are a code fixer agent. You receive a list of critical issues found during code review, and your task is to fix them.
 
 ## Workflow
 1. Read each file involved in the issues
@@ -317,12 +404,17 @@ For each fix:
 If an issue cannot be safely fixed:
 \`\`\`
 ⚠️ [file_path:line_number] Cannot fix: reason
-\`\`\``
+\`\`\``,
+  }
+
+  return prompts[lang]
 }
 
 export function buildTogglePrompt(config: ReviewConfig): string {
-  if (config.language === "zh") {
-    return `用户请求切换自动审查功能。请立即调用 \`toggle_auto_review\` 工具完成操作，不要做其他事情。
+  const lang = getLang(config)
+
+  const prompts: Record<SupportedLanguage, string> = {
+    zh: `用户请求切换自动审查功能。请立即调用 \`toggle_auto_review\` 工具完成操作，不要做其他事情。
 
 用户参数：{{args}}
 
@@ -330,10 +422,17 @@ export function buildTogglePrompt(config: ReviewConfig): string {
 - 如果用户参数包含 "on"，调用 toggle_auto_review(enabled: true)
 - 如果用户参数包含 "off"，调用 toggle_auto_review(enabled: false)
 - 如果没有参数，调用 toggle_auto_review() 查询当前状态
-- 调用后直接将工具返回的结果告诉用户`
-  }
+- 调用后直接将工具返回的结果告诉用户`,
+    tr: `Kullanıcı otomatik incelemeyi değiştirmek istiyor. Hemen \`toggle_auto_review\` aracını çağır ve başka bir şey yapma.
 
-  return `The user wants to toggle auto-review. Call the \`toggle_auto_review\` tool immediately and do nothing else.
+Kullanıcı argümanları: {{args}}
+
+Kurallar:
+- Argüman "on" içeriyorsa, toggle_auto_review(enabled: true) çağır
+- Argüman "off" içeriyorsa, toggle_auto_review(enabled: false) çağır
+- Argüman yoksa, mevcut durumu sorgulamak için toggle_auto_review() çağır
+- Aracın döndürdüğü sonucu doğrudan kullanıcıya ilet`,
+    en: `The user wants to toggle auto-review. Call the \`toggle_auto_review\` tool immediately and do nothing else.
 
 User args: {{args}}
 
@@ -341,5 +440,8 @@ Rules:
 - If args contain "on", call toggle_auto_review(enabled: true)
 - If args contain "off", call toggle_auto_review(enabled: false)
 - If no args, call toggle_auto_review() to query current state
-- Report the tool result directly to the user`
+- Report the tool result directly to the user`,
+  }
+
+  return prompts[lang]
 }

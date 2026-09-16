@@ -10,7 +10,7 @@ An automatic code review plugin for [OpenCode](https://opencode.ai) CLI. Automat
 - Three review scopes: staged changes, last commit, full branch diff
 - Configurable review dimensions (code quality, security, performance, testing, documentation)
 - Structured output with severity levels (critical / suggestion / highlight)
-- Supports Chinese and English output
+- Supports Chinese, English, and Turkish output
 
 ## Installation
 
@@ -90,7 +90,7 @@ Create `.opencode/review.json` in your project (or `~/.config/opencode/review.js
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `language` | Output language (`"zh"` or `"en"`) | `"zh"` |
+| `language` | Output language (`"zh"`, `"en"`, or `"tr"`) | `"zh"` |
 | `dimensions` | Review dimensions to check | All 5 dimensions |
 | `max_diff_lines` | Max diff lines before truncation | `500` |
 | `trigger.auto_on_idle` | Auto-review when session goes idle | `false` |

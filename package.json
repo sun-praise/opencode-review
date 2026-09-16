@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"TODO: add tests\" && exit 0"
+    "test": "bun test"
   },
   "keywords": [
     "opencode",
